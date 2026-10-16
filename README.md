@@ -1,6 +1,6 @@
 # Marginstone
 
-The idea for Marginstone came from [Buddy](https://github.com/varun-ml/buddy), by [varun-ml](https://github.com/varun-ml). I’m grateful to Varun for the inspiration.
+The idea for Marginstone came from [Buddy](https://github.com/varun-ml/buddy), by [varun-ml](https://github.com/varun-ml), whose inspiration I acknowledge with delight and gratitude.
 
 **v0.1.0 · Public Beta · macOS**
 
