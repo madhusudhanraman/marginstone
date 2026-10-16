@@ -40,7 +40,10 @@ final class NautilusView: NSView {
         setAccessibilityElement(true); setAccessibilityRole(.button)
         setAccessibilityLabel("\(companion.name). Drop selected text to save it. Click to open the collection.")
         toolTip = "Drop selected text to save. Click for your collection. Drag the shell to move it. Right-click for Capture Clipboard."
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0/30, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0/30, repeats: true) { [weak self] _ in
+            guard let view = self else { return }
+            Task { @MainActor in view.tick() }
+        }
     }
     func setCompanion(_ value: Companion) {
         companion = value; shell = value.image; angle = 0; capturedAt = nil

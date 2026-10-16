@@ -8,13 +8,15 @@ Marginstone is an attempt to make this a little easier. A small companion sits o
 
 The companions are fossils: a nautilus, a leaf, an ammonite, a brachiopod, and a fern. The connection is perhaps fairly obvious—fragments preserved, something to return to—but I also simply liked the idea of having one of these on my desk.
 
-<p>
-<img src="Sources/Nautilus/Resources/nautilus.png" width="100" alt="Nautilus">
-<img src="Sources/Nautilus/Resources/leaf.png" width="100" alt="Fossil leaf">
-<img src="Sources/Nautilus/Resources/ammonite.png" width="100" alt="Ammonite">
-<img src="Sources/Nautilus/Resources/brachiopod.png" width="100" alt="Brachiopod">
-<img src="Sources/Nautilus/Resources/fern.png" width="100" alt="Fossil fern">
-</p>
+<table width="100%">
+<tr>
+<td width="20%" align="center"><img src="Sources/Nautilus/Resources/nautilus.png" width="110" alt="Nautilus"><br>Nautilus</td>
+<td width="20%" align="center"><img src="Sources/Nautilus/Resources/leaf.png" width="110" alt="Fossil leaf"><br>Fossil leaf</td>
+<td width="20%" align="center"><img src="Sources/Nautilus/Resources/ammonite.png" width="110" alt="Ammonite"><br>Ammonite</td>
+<td width="20%" align="center"><img src="Sources/Nautilus/Resources/brachiopod.png" width="110" alt="Brachiopod"><br>Brachiopod</td>
+<td width="20%" align="center"><img src="Sources/Nautilus/Resources/fern.png" width="110" alt="Fossil fern"><br>Fossil fern</td>
+</tr>
+</table>
 
 ## A work in progress
 

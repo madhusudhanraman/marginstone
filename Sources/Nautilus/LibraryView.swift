@@ -271,19 +271,29 @@ struct SourcePicker: View {
     @LocalViewState private var findingYear = false
     @LocalViewState private var sourceKind = "other"
     var body: some View {
+        sourceForm
+            .sheet(isPresented: $choosingCover) { CoverPicker(title: title, author: author) { cover = $0 } }
+            .onAppear(perform: prepareSource)
+            .onChange(of: sourceURL) { value in
+                if !value.isEmpty && sourceKind == "other" { sourceKind = "article" }
+            }
+            .task(id: publicationLookupKey) { await lookupPublicationYear() }
+            .task { await lookupInitialMetadata() }
+    }
+    private var publicationLookupKey: String {
+        [sourceKind, PublicationYear.baseTitle(title), author].joined(separator: "\n")
+    }
+    private var sourceForm: some View {
         VStack(alignment: .leading, spacing: 15) {
-            HStack { Text(passage == nil ? "Add a source" : "Confirm the source").font(.system(size: 26, design: .serif)); Spacer(); Button("Later") { dismiss() } }
-            Text(passage == nil ? "Keep passages from the same book or essay together." : "Your passage is saved locally. Choose its source below.").font(.system(size: 12)).foregroundColor(.secondary)
+            HStack {
+                Text(passage == nil ? "Add a source" : "Confirm the source").font(.system(size: 26, design: .serif))
+                Spacer()
+                Button("Later") { dismiss() }
+            }
+            Text(passage == nil ? "Keep passages from the same book or essay together." : "Your passage is saved locally. Choose its source below.")
+                .font(.system(size: 12)).foregroundColor(.secondary)
             if passage != nil && !model.sources.isEmpty {
-                HStack {
-                    Picker("Source", selection: $existing) {
-                        Text("Choose a source…").tag("")
-                        ForEach(booksByAuthor(model.sources)) { Text($0.dropdownTitle).tag($0.path) }
-                    }
-                    Button("Use this source") {
-                        if let passage, let source = model.sources.first(where: { $0.path == existing }) { model.assign(passage.id, to: source); dismiss() }
-                    }.disabled(existing.isEmpty)
-                }
+                existingSourceFields
                 Divider()
             }
             if passage == nil {
@@ -291,39 +301,53 @@ struct SourcePicker: View {
             } else {
                 DisclosureGroup("Add source details…", isExpanded: $creatingSource) { newSourceFields }
             }
-
         }.padding(25).frame(width: 660).background(Color.paper).foregroundColor(.ink).tint(.oxide).preferredColorScheme(.light)
-        .sheet(isPresented: $choosingCover) { CoverPicker(title: title, author: author) { cover = $0 } }
-        .onAppear {
-            if let passage, let hint = CitationParser.books(passage.payload.text) { title = hint.title; author = hint.author; sourceKind = "book" }
-            if let passage {
-                if title.isEmpty { title = passage.payload.sourceTitle ?? "" }
-                if author.isEmpty { author = passage.payload.sourceAuthor ?? "" }
-                sourceURL = passage.payload.url
-                creatingSource = !title.isEmpty || !sourceURL.isEmpty
-                if !sourceURL.isEmpty && CitationParser.books(passage.payload.text) == nil { sourceKind = "article" }
+    }
+    private var existingSourceFields: some View {
+        HStack {
+            Picker("Source", selection: $existing) {
+                Text("Choose a source…").tag("")
+                ForEach(booksByAuthor(model.sources)) { Text($0.dropdownTitle).tag($0.path) }
             }
-            existing = passage?.sourcePath ?? ""
+            Button("Use this source", action: useExistingSource).disabled(existing.isEmpty)
         }
-        .onChange(of: sourceURL) { if !$0.isEmpty && sourceKind == "other" { sourceKind = "article" } }
-        .task(id: sourceKind + "\n" + PublicationYear.baseTitle(title) + "\n" + author) {
-            guard sourceKind == "book",
-                  title.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2,
-                  PublicationYear.fromTitle(title) == nil else { return }
-            let requestedTitle = title; let requestedAuthor = author
-            findingYear = true; defer { findingYear = false }
-            do {
-                try await Task.sleep(nanoseconds: 800_000_000)
-                if let year = try await OpenLibrary.publicationYear(title: requestedTitle, author: requestedAuthor),
-                   !Task.isCancelled, title == requestedTitle, author == requestedAuthor {
-                    title = PublicationYear.title(title, year: year)
-                }
-            } catch { }
+    }
+    private func useExistingSource() {
+        guard let passage, let source = model.sources.first(where: { $0.path == existing }) else { return }
+        model.assign(passage.id, to: source); dismiss()
+    }
+    private func prepareSource() {
+        if let passage, let hint = CitationParser.books(passage.payload.text) {
+            title = hint.title; author = hint.author; sourceKind = "book"
         }
-        .task {
-            guard let passage, !passage.payload.url.isEmpty, CitationParser.books(passage.payload.text) == nil, passage.payload.sourceTitle?.isEmpty != false || passage.payload.sourceAuthor?.isEmpty != false else { return }
-            await lookUpSource(passage)
+        if let passage {
+            if title.isEmpty { title = passage.payload.sourceTitle ?? "" }
+            if author.isEmpty { author = passage.payload.sourceAuthor ?? "" }
+            sourceURL = passage.payload.url
+            creatingSource = !title.isEmpty || !sourceURL.isEmpty
+            if !sourceURL.isEmpty && CitationParser.books(passage.payload.text) == nil { sourceKind = "article" }
         }
+        existing = passage?.sourcePath ?? ""
+    }
+    private func lookupPublicationYear() async {
+        guard sourceKind == "book", title.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2,
+              PublicationYear.fromTitle(title) == nil else { return }
+        let requestedTitle = title; let requestedAuthor = author
+        findingYear = true; defer { findingYear = false }
+        do {
+            try await Task.sleep(nanoseconds: 800_000_000)
+            if let year = try await OpenLibrary.publicationYear(title: requestedTitle, author: requestedAuthor),
+               !Task.isCancelled, title == requestedTitle, author == requestedAuthor {
+                title = PublicationYear.title(title, year: year)
+            }
+        } catch { }
+    }
+    private func lookupInitialMetadata() async {
+        guard let passage, !passage.payload.url.isEmpty, CitationParser.books(passage.payload.text) == nil else { return }
+        let missingTitle = passage.payload.sourceTitle?.isEmpty != false
+        let missingAuthor = passage.payload.sourceAuthor?.isEmpty != false
+        guard missingTitle || missingAuthor else { return }
+        await lookUpSource(passage)
     }
     private var newSourceFields: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -341,7 +365,23 @@ struct SourcePicker: View {
 
             TextField("Title", text: $title).textFieldStyle(.roundedBorder)
             TextField("Author", text: $author).textFieldStyle(.roundedBorder)
-            if sourceKind == "book" {
+            if sourceKind == "book" { bookSourceFields }
+            if sourceKind != "book" && !message.isEmpty { Text(message).font(.caption).foregroundColor(.secondary) }
+            HStack {
+                Spacer()
+                Button(passage == nil ? "Add source" : "Save source") {
+                    let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let source = BookSource(path: model.newPath(title: cleanTitle, author: author), title: cleanTitle, author: author, cover: sourceKind == "book" ? cover : "", edition: sourceKind == "book" ? edition : "", kind: sourceKind)
+                    if let passage {
+                        do { try model.setCaptureSource(passage.id, title: cleanTitle, author: author, url: sourceURL); model.assign(passage.id, to: source); dismiss() }
+                        catch { message = error.localizedDescription }
+                    } else { model.createSource(source); dismiss() }
+                }.disabled((sourceKind == "book" && findingYear) || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+    private var bookSourceFields: some View {
+        VStack(alignment: .leading, spacing: 15) {
             if findingYear { Text("Looking up first publication year…").font(.caption).foregroundColor(.secondary) }
             HStack {
                 Button("Find books & editions", action: search).disabled(loading || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -380,19 +420,6 @@ struct SourcePicker: View {
                 TextField("Cover URL", text: $cover).textFieldStyle(.roundedBorder)
             }
             if !edition.isEmpty { Text(edition).font(.system(size: 10)).foregroundColor(.secondary) }
-            }
-            if sourceKind != "book" && !message.isEmpty { Text(message).font(.caption).foregroundColor(.secondary) }
-            HStack {
-                Spacer()
-                Button(passage == nil ? "Add source" : "Save source") {
-                    let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let source = BookSource(path: model.newPath(title: cleanTitle, author: author), title: cleanTitle, author: author, cover: sourceKind == "book" ? cover : "", edition: sourceKind == "book" ? edition : "", kind: sourceKind)
-                    if let passage {
-                        do { try model.setCaptureSource(passage.id, title: cleanTitle, author: author, url: sourceURL); model.assign(passage.id, to: source); dismiss() }
-                        catch { message = error.localizedDescription }
-                    } else { model.createSource(source); dismiss() }
-                }.disabled((sourceKind == "book" && findingYear) || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
         }
     }
     private func lookUpSource(_ passage: SavedPassage?) async {
