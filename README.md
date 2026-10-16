@@ -2,6 +2,8 @@
 
 **v0.1.0 · Public beta · macOS**
 
+The idea for Marginstone came from [Buddy](https://github.com/varun-ml/buddy), by [varun-ml](https://github.com/varun-ml).
+
 I wanted a small app for keeping passages from whatever I happened to be reading: a book, an essay, something encountered in a browser. Copying the words is easy enough. Remembering where they came from, and finding them again a few weeks later, is less straightforward.
 
 Marginstone is an attempt to make this a little easier. A small companion sits on your screen; drop a passage onto it, or copy the passage and choose **Capture clipboard** from its menu. The words are saved on your Mac. You can add a source, correct the text, and return to it later. You do not need a website or a GitHub account to use it.
