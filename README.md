@@ -8,15 +8,10 @@ Marginstone is an attempt to make this a little easier. A small companion sits o
 
 The companions are fossils: a nautilus, a leaf, an ammonite, a brachiopod, and a fern. The connection is perhaps fairly obvious—fragments preserved, something to return to—but I also simply liked the idea of having one of these on my desk.
 
-<table width="100%">
-<tr>
-<td width="20%" align="center"><img src="Sources/Nautilus/Resources/nautilus.png" width="110" alt="Nautilus"><br>Nautilus</td>
-<td width="20%" align="center"><img src="Sources/Nautilus/Resources/leaf.png" width="110" alt="Leaf"><br>Leaf</td>
-<td width="20%" align="center"><img src="Sources/Nautilus/Resources/ammonite.png" width="110" alt="Ammonite"><br>Ammonite</td>
-<td width="20%" align="center"><img src="Sources/Nautilus/Resources/brachiopod.png" width="110" alt="Brachiopod"><br>Brachiopod</td>
-<td width="20%" align="center"><img src="Sources/Nautilus/Resources/fern.png" width="110" alt="Fern"><br>Fern</td>
-</tr>
-</table>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/companions-dark.png">
+  <img src="docs/companions-light.png" width="100%" alt="Marginstone companions: Nautilus, Leaf, Ammonite, Brachiopod, Fern">
+</picture>
 
 ## A work in progress
 
