@@ -1,0 +1,19 @@
+MARGINSTONE v0.1.0 — PUBLIC BETA
+
+This app is under development. It currently installs from source.
+Requires macOS 13 or later and Apple Command Line Tools.
+
+1. Extract the downloaded ZIP into a folder you want to keep.
+2. Open Terminal and type: bash followed by a space.
+3. Drag “Install Marginstone.command” into Terminal and press Return.
+4. If prompted, install Apple Command Line Tools and run the installer again.
+
+Marginstone is installed in ~/Applications and opens automatically.
+Drop text onto the companion, or copy it and choose Capture clipboard.
+Your excerpts are saved automatically on your Mac.
+You do not need GitHub or a website. Save to file exports Markdown.
+
+This build is not Apple-notarised. macOS may request folder permission,
+including after development updates. Website publishing is experimental.
+
+See README.md for instructions, limitations, and data storage details.

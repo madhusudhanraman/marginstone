@@ -1,0 +1,33 @@
+name: Build Marginstone for Mac
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-14
+    strategy:
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run developer tests
+        run: |
+          swift test
+          bash scripts/test-core.sh
+          python3 scripts/test-repository.py
+          python3 scripts/test-build-flow.py
+      - name: Build app
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/build-macos.sh
+      - name: Package development build
+        run: ditto -c -k --sequesterRsrc --keepParent dist/Marginstone.app dist/Marginstone-${{ matrix.arch }}.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Marginstone-${{ matrix.arch }}
+          path: dist/Marginstone-${{ matrix.arch }}.zip
