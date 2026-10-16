@@ -87,7 +87,7 @@ public enum Markdown {
         let kind = book.kind ?? "book"
         let category = kind == "article" ? "Articles" : kind == "other" ? "Excerpts" : "Books"
         let bookAuthor = kind == "book" ? "book_author: \(quote(book.author))\n" : ""
-        return "---\ntitle: \(quote(book.title))\n\(year)date: \(date)\nlast_modified_at: \(date)\ncategories: [\(category)]\nsource_kind: \(quote(kind))\nauthor: \(quote(book.author))\n\(bookAuthor)cover: \(quote(book.cover))\nnautilus_edition: \(quote(book.edition))\n---\n\n## Excerpts\n"
+        return "---\ntitle: \(quote(book.title))\n\(year)date: \(date)\nlast_modified_at: \(date)\ncategories: [\(category)]\nexcerpt: \"…\"\nsource_kind: \(quote(kind))\nauthor: \(quote(book.author))\n\(bookAuthor)cover: \(quote(book.cover))\nnautilus_edition: \(quote(book.edition))\n---\n\n## Excerpts\n"
     }
     public static func block(_ p: SavedPassage, text: String) -> String {
         let literal = text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
