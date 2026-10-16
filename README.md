@@ -1,6 +1,6 @@
 # Marginstone
 
-Inspired by [Varun’s Buddy](https://github.com/varun-ml/buddy), with delight and gratitude.
+Inspired by [Varun’s Buddy](https://github.com/varun-ml/buddy). My thanks to [Varun](https://github.com/varun-ml), with delight and gratitude.
 
 **v0.1.0 · Public Beta · macOS**
 
