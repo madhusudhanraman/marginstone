@@ -1,9 +1,8 @@
 # Marginstone
 
-*To Varun, whose [Buddy](https://github.com/varun-ml/buddy) gave me the idea—*<br>
-*with delight and gratitude.*
+The idea for Marginstone came from [Buddy](https://github.com/varun-ml/buddy), by [varun-ml](https://github.com/varun-ml). I’m grateful to Varun for the inspiration.
 
-**v0.1.0 · Public beta · macOS**
+**v0.1.0 · Public Beta · macOS**
 
 I wanted a small app for keeping passages from whatever I happened to be reading: a book, an essay, something encountered in a browser. Copying the words is easy enough. Remembering where they came from, and finding them again a few weeks later, is less straightforward.
 
@@ -16,7 +15,7 @@ The companions are fossils: a nautilus, a leaf, an ammonite, a brachiopod, and a
   <img src="docs/companions-light.png" width="100%" alt="Marginstone companions: Nautilus, Leaf, Ammonite, Brachiopod, Fern">
 </picture>
 
-## A work in progress
+## A Work in Progress
 
 This is an early public version, shared while it is still being developed. The intention is a quiet, useful app for everyday reading. The interface and the details of that workflow are still being worked out.
 
@@ -40,7 +39,7 @@ You need a Mac running **macOS 13 or later** and Apple Command Line Tools. This 
 
 The installer builds Marginstone, places it in `~/Applications/Marginstone.app`, and opens it. Updates preserve the saved collection. Local development builds use ad-hoc signing, so macOS may ask again for folder permission after an update. Intel builds have not yet been verified on an Intel Mac.
 
-## Using it
+## Using It
 
 Drop selected text onto the companion. If dragging is unavailable, copy the passage and choose **Capture clipboard** from the companion's menu. Captures are saved automatically, even when their source is unknown.
 
@@ -50,7 +49,7 @@ In Settings, choose a companion and whether it moves side to side. Drag it to pl
 
 For browser articles, **Settings → Set up browser capture…** explains how to add a capture bookmark. This can pass the selected text, page title, link, and an available author directly from the open page. Ordinary copying may supply only the selected words. Some sites block automatic metadata lookup, and not every visible byline is marked in a way the app can recognise; missing details remain editable. Books citations are likewise used when the source app supplies them.
 
-## Optional website publishing
+## Optional Website Publishing
 
 Marginstone can also prepare excerpts for a Markdown website with a `_posts` folder. This grew out of my own workflow, and remains the least general part of the app. It is not a universal publishing tool.
 
@@ -58,13 +57,13 @@ Choose your local website checkout in Settings. Marginstone prepares posts in a 
 
 GitHub connection uses your existing Git credentials, or a repository-scoped token stored in macOS Keychain. A failed push can leave a local commit to review in your Git client. Use a disposable website repository for testing this feature, not your live site.
 
-## Your data
+## Your Data
 
 The collection is stored locally in `~/Library/Application Support/Nautilus/`. The old folder name is retained so updates continue to find existing captures. Removing the app does not remove that collection.
 
 There is no background clipboard monitoring. Clipboard capture happens when you request it. Source lookup sends a webpage URL to that site; book searches send title and author queries to Open Library and cover searches may also use Goodreads. These requests do not send your excerpt text. Choosing Publish sends the post to your website repository.
 
-## Development and feedback
+## Development and Feedback
 
 Marginstone is written in Swift, using AppKit and SwiftUI. Some internal target names still say Nautilus, its earlier name.
 
