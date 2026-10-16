@@ -4,9 +4,17 @@ public enum MarkdownExport {
         let selected = passages.filter { sourcePath == nil || $0.sourcePath == sourcePath }
         func heading(_ value: String) -> String { value.components(separatedBy: .newlines).joined(separator: " ") }
         var result = "# Marginstone excerpts\n"
-        let paths = Array(Set(selected.compactMap(\.sourcePath))).sorted { a, b in
-            let left = sources.first { $0.path == a }; let right = sources.first { $0.path == b }
-            return ((left?.author ?? "") + (left?.title ?? a)).localizedStandardCompare((right?.author ?? "") + (right?.title ?? b)) == .orderedAscending
+        let capturedPaths: [String] = selected.compactMap { $0.sourcePath }
+        let uniquePaths = Set<String>(capturedPaths)
+        func sortKey(for path: String) -> String {
+            guard let source = sources.first(where: { $0.path == path }) else { return path }
+            return source.author + source.title
+        }
+        let paths: [String] = uniquePaths.sorted { (left: String, right: String) -> Bool in
+            let leftKey = sortKey(for: left)
+            let rightKey = sortKey(for: right)
+            let comparison = leftKey.localizedStandardCompare(rightKey)
+            return comparison == .orderedSame ? left < right : comparison == .orderedAscending
         }
         let groups: [String?] = paths.map { Optional($0) } + (selected.contains { $0.sourcePath == nil } ? [nil] : [])
         for path in groups {
