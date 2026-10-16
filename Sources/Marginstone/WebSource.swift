@@ -1,5 +1,5 @@
 import Foundation
-import NautilusCore
+import MarginstoneCore
 
 enum WebSource {
     static func lookup(_ value: String) async throws -> SourceMetadata {

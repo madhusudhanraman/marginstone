@@ -1,5 +1,5 @@
 import AppKit
-import NautilusCore
+import MarginstoneCore
 
 enum CaptureReader {
     static let supported: [NSPasteboard.PasteboardType] = [.string, .rtf, .rtfd, .html]

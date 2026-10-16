@@ -1,6 +1,6 @@
 # Marginstone
 
-The idea for Marginstone came from [Buddy](https://github.com/varun-ml/buddy), by [varun-ml](https://github.com/varun-ml), whose inspiration I acknowledge with delight and gratitude.
+Inspired by [Varun’s Buddy](https://github.com/varun-ml/buddy), with delight and gratitude.
 
 **v0.1.0 · Public Beta · macOS**
 
@@ -65,7 +65,7 @@ There is no background clipboard monitoring. Clipboard capture happens when you 
 
 ## Development and Feedback
 
-Marginstone is written in Swift, using AppKit and SwiftUI. Some internal target names still say Nautilus, its earlier name.
+Marginstone is written in Swift, using AppKit and SwiftUI. The package contains the Marginstone application, the MarginstoneCore library, and the MarginstoneCoreTests test suite.
 
 ```sh
 bash scripts/build-macos.sh

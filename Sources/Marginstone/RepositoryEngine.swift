@@ -1,5 +1,5 @@
 import Foundation
-import NautilusCore
+import MarginstoneCore
 
 struct AppFailure: LocalizedError {
     var message: String
@@ -56,7 +56,7 @@ actor RepositoryEngine {
     }
     func connect(repo: String, tree: String) throws -> (String, [BookSource]) {
         let result = try run(["setup", repo, tree])
-        guard let branch = result.components(separatedBy: .newlines).last(where: { $0.hasPrefix("NAUTILUS_BRANCH=") })?.dropFirst("NAUTILUS_BRANCH=".count) else { throw AppFailure(message: result) }
+        guard let branch = result.components(separatedBy: .newlines).last(where: { $0.hasPrefix("MARGINSTONE_BRANCH=") })?.dropFirst("MARGINSTONE_BRANCH=".count) else { throw AppFailure(message: result) }
         let folder = URL(fileURLWithPath: tree).appendingPathComponent("_posts")
         let files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
         let books = files.filter { $0.pathExtension == "md" }.compactMap { file -> BookSource? in

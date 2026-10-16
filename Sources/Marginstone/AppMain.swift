@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
-import NautilusCore
+import MarginstoneCore
 
 @main @MainActor
-enum NautilusMain {
+enum MarginstoneMain {
     static func main() {
         let app = NSApplication.shared; let delegate = AppDelegate()
         app.delegate = delegate; app.setActivationPolicy(.regular); app.run()
@@ -14,7 +14,7 @@ enum NautilusMain {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel!
     private var panel: FloatingPanel!
-    private var shell: NautilusView!
+    private var shell: CompanionView!
     private var collection: NSWindow?
     private var pendingWebCaptures: [URL] = []
     private var statusItem: NSStatusItem!
@@ -109,7 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
         panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false; panel.animationBehavior = .none
-        shell = NautilusView(frame: NSRect(x: 0, y: 0, width: 110, height: 110))
+        shell = CompanionView(frame: NSRect(x: 0, y: 0, width: 110, height: 110))
         shell.capture = { [weak self] payload in
             guard let self else { return }
             do { _ = try self.model.receive(payload) }
@@ -137,7 +137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if collection == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 930, height: 790), styleMask: [.titled,.closable,.miniaturizable,.resizable], backing: .buffered, defer: false)
             window.title = "Marginstone"; window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(rootView: LibraryView(model: model, showNautilus: { [weak self] in self?.showShell() }))
+            window.contentView = NSHostingView(rootView: LibraryView(model: model, showCompanion: { [weak self] in self?.showShell() }))
             window.minSize = NSSize(width: 830, height: 730); window.center(); collection = window
         }
         NSApp.activate(ignoringOtherApps: true); collection?.makeKeyAndOrderFront(nil)

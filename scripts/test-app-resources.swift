@@ -3,7 +3,7 @@ extension Bundle { static var module: Bundle { fatalError("Development resource 
 @main struct Check {
  static func main() {
   let bundle = AppResources.bundle
-  precondition(bundle.bundleURL.path.hasPrefix(Bundle.main.bundleURL.path + "/Contents/Resources/"))
+  precondition(bundle.bundleURL.resolvingSymlinksInPath().path.hasPrefix(Bundle.main.bundleURL.resolvingSymlinksInPath().path + "/Contents/Resources/"))
   for name in ["nautilus", "leaf", "ammonite", "brachiopod", "fern", "band-0"] {
    precondition(bundle.url(forResource: name, withExtension: "png", subdirectory: "Resources") != nil)
   }

@@ -9,7 +9,7 @@ valid_path() { [[ "$1" == _posts/*.md && "${1#_posts/}" != */* && "${1#_posts/}"
 commit_file() {
   local tree="$1" path="$2" message="$3" name email
   name="$(git -C "$tree" config user.name || true)"; email="$(git -C "$tree" config user.email || true)"
-  git -C "$tree" -c user.name="${name:-Nautilus}" -c user.email="${email:-nautilus@localhost}" commit --only -m "$message" -- "$path"
+  git -C "$tree" -c user.name="${name:-Marginstone}" -c user.email="${email:-marginstone@localhost}" commit --only -m "$message" -- "$path"
 }
 case "$command_name" in
 remote) git -C "${1:?}" remote get-url origin ;;
@@ -36,7 +36,7 @@ setup)
   else
     git -C "$repo" worktree add -b nautilus/drafts "$tree" "$branch"
   fi
-  echo "NAUTILUS_BRANCH=$branch"
+  echo "MARGINSTONE_BRANCH=$branch"
   ;;
 commit)
   tree="${1:?}"; path="${2:?}"; valid_path "$path" || fail 'Invalid post path.'

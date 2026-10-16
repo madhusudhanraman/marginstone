@@ -1,5 +1,5 @@
 import XCTest
-@testable import NautilusCore
+@testable import MarginstoneCore
 final class CaptureTests: XCTestCase {
     func testBooksCitationSeparatesPassageAndSource() {
         let raw = "“The paragraph.”\r\n\r\nExcerpt From\r\nHerzog\r\nSaul Bellow\r\nThis material may be protected by copyright."

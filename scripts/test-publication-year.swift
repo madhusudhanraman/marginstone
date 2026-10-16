@@ -1,5 +1,5 @@
 import Foundation
-import NautilusCore
+import MarginstoneCore
 struct AppFailure: LocalizedError { var message: String; var errorDescription: String? { message } }
 @main struct YearCheck {
  static func main() async throws {

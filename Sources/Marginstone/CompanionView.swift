@@ -1,12 +1,12 @@
 import AppKit
-import NautilusCore
+import MarginstoneCore
 
 final class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
 @MainActor
-final class NautilusView: NSView {
+final class CompanionView: NSView {
     var movesSideToSide = true
     var capture: ((CapturePayload) throws -> Void)?
     var openCollection: (() -> Void)?

@@ -10,7 +10,7 @@ import AppKit
                   let context = NSGraphicsContext(bitmapImageRep: bitmap) else { fatalError("Could not render gallery") }
             NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = context
             for (index, entry) in names.enumerated() {
-                guard let source = NSImage(contentsOfFile: "Sources/Nautilus/Resources/" + entry.0 + ".png") else { fatalError("Missing artwork") }
+                guard let source = NSImage(contentsOfFile: "Sources/Marginstone/Resources/" + entry.0 + ".png") else { fatalError("Missing artwork") }
                 let scale = min(480/source.size.width, 480/source.size.height)
                 let size = NSSize(width: source.size.width*scale, height: source.size.height*scale)
                 source.draw(in: NSRect(x: CGFloat(index*600+60)+(480-size.width)/2, y: 120+(480-size.height)/2, width: size.width, height: size.height))

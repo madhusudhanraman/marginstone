@@ -6,7 +6,7 @@ enum AppResources {
     static let bundle: Bundle = {
         if Bundle.main.bundleURL.pathExtension == "app" {
             guard let resources = Bundle.main.resourceURL,
-                  let bundle = Bundle(url: resources.appendingPathComponent("Nautilus_Nautilus.bundle")) else {
+                  let bundle = Bundle(url: resources.appendingPathComponent("Marginstone_Marginstone.bundle")) else {
                 fatalError("Marginstone’s packaged resources are missing. Reinstall the app.")
             }
             return bundle

@@ -7,7 +7,8 @@
 	<key>CFBundleExecutable</key>
 	<string>Marginstone</string>
 	<key>CFBundleIconFile</key>
-	<string>Nautilus.icns</string>
+	<string>Marginstone.icns</string>
+	<!-- Stable identity preserves existing preferences and permissions. -->
 	<key>CFBundleIdentifier</key>
 	<string>com.fieldnotes.nautilus</string>
 	<key>CFBundleName</key>

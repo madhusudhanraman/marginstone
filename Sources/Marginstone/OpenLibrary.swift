@@ -1,5 +1,5 @@
 import Foundation
-import NautilusCore
+import MarginstoneCore
 struct WorkResult: Decodable, Identifiable {
     var key: String; var title: String; var author_name: [String]?; var cover_i: Int?; var first_publish_year: Int?
     var id: String { key }

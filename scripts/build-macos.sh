@@ -12,26 +12,27 @@ if [[ -n "${ARCH:-}" ]]; then
 fi
 # Installation builds only the application. XCTest is a developer/CI dependency;
 # it is not included in every standalone Command Line Tools installation.
-swift build "${args[@]}" --product Nautilus
-bin_path="$(swift build "${args[@]}" --product Nautilus --show-bin-path)"
+swift build "${args[@]}" --product Marginstone
+bin_path="$(swift build "${args[@]}" --product Marginstone --show-bin-path)"
 app_path="$PWD/dist/Marginstone.app"
+# Recreate only generated output so old bundle names cannot survive a rename.
+rm -rf "$app_path"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
-cp "$bin_path/Nautilus" "$app_path/Contents/MacOS/Marginstone"
+cp "$bin_path/Marginstone" "$app_path/Contents/MacOS/Marginstone"
 cp Info.plist "$app_path/Contents/Info.plist"
-for resource in "$bin_path"/*.bundle; do
-  [[ -d "$resource" ]] || continue
-  ditto "$resource" "$app_path/Contents/Resources/$(basename "$resource")"
-done
-iconset="$PWD/dist/Nautilus.iconset"
+resource_bundle="$bin_path/Marginstone_Marginstone.bundle"
+[[ -d "$resource_bundle" ]] || { echo 'Marginstone resource bundle is missing.' >&2; exit 1; }
+ditto "$resource_bundle" "$app_path/Contents/Resources/Marginstone_Marginstone.bundle"
+iconset="$PWD/dist/Marginstone.iconset"
 mkdir -p "$iconset"
-swiftc Sources/Nautilus/SystemIcons.swift scripts/render-system-icon.swift -o "$PWD/dist/render-system-icon"
-"$PWD/dist/render-system-icon" Sources/Nautilus/Resources/nautilus.png "$PWD/dist/system-icon.png"
+swiftc Sources/Marginstone/SystemIcons.swift scripts/render-system-icon.swift -o "$PWD/dist/render-system-icon"
+"$PWD/dist/render-system-icon" Sources/Marginstone/Resources/nautilus.png "$PWD/dist/system-icon.png"
 for size in 16 32 128 256 512; do
   sips -z "$size" "$size" "$PWD/dist/system-icon.png" --out "$iconset/icon_${size}x${size}.png" >/dev/null
   double=$((size*2))
   sips -z "$double" "$double" "$PWD/dist/system-icon.png" --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
 done
-iconutil -c icns "$iconset" -o "$app_path/Contents/Resources/Nautilus.icns"
+iconutil -c icns "$iconset" -o "$app_path/Contents/Resources/Marginstone.icns"
 codesign --force --sign - "$app_path"
 codesign --verify --deep --strict "$app_path"
 echo "Built: $app_path"

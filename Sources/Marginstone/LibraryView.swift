@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import NautilusCore
+import MarginstoneCore
 
 // SDK 27 also exports a State macro, whose plugin may be absent from the
 // standalone Command Line Tools. Refer to the existing generic wrapper type
@@ -35,7 +35,7 @@ private func booksByAuthor(_ books: [BookSource]) -> [BookSource] {
 @MainActor
 struct LibraryView: View {
     @ObservedObject var model: AppModel
-    var showNautilus: () -> Void
+    var showCompanion: () -> Void
     @LocalViewState private var search = ""
     @LocalViewState private var selecting: SavedPassage?
     @LocalViewState private var inspecting: SavedPassage?
@@ -126,7 +126,7 @@ struct LibraryView: View {
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             if !Task.isCancelled { savedNotice = "" }
         }
-        .sheet(isPresented: $model.showingSettings) { CollectionSettings(model: model, showCompanion: showNautilus) }
+        .sheet(isPresented: $model.showingSettings) { CollectionSettings(model: model, showCompanion: showCompanion) }
         .sheet(item: $selecting, onDismiss: { model.choosingSource = false }) { passage in SourcePicker(model: model, passage: passage) }
         .sheet(item: $editingPassage) { passage in ExcerptEditor(model: model, passage: passage) }
         .sheet(item: $editingPost) { book in PostEditor(model: model, book: book) }

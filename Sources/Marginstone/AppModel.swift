@@ -1,7 +1,7 @@
 import AppKit
 import Combine
 import UniformTypeIdentifiers
-import NautilusCore
+import MarginstoneCore
 
 private struct Journal: Codable {
     var version = 1
@@ -60,6 +60,7 @@ final class AppModel: ObservableObject {
     var unassigned: [SavedPassage] { passages.filter { $0.sourcePath == nil } }
     var pending: [SavedPassage] { passages.filter { !$0.written && $0.sourcePath != nil } }
     init() {
+        // Keep the original storage location so upgrades retain captures and the Git worktree.
         support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Nautilus")
         journal = support.appendingPathComponent("collection.json")
         if FileManager.default.fileExists(atPath: journal.path) {

@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-HELPER = Path(__file__).resolve().parents[1] / 'Sources/Nautilus/Resources/repository.sh'
+HELPER = Path(__file__).resolve().parents[1] / 'Sources/Marginstone/Resources/repository.sh'
 
 def git(folder, *args, ok=True):
     p = subprocess.run(['git', '-C', str(folder), *args], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -17,8 +17,8 @@ def helper(*args, ok=True):
     if ok and p.returncode: raise AssertionError(p.stdout)
     return p
 
-with tempfile.TemporaryDirectory(prefix='nautilus-git-') as temp:
-    root = Path(temp).resolve(); remote = root/'remote.git'; repo = root/'website with spaces'; tree = root/'Nautilus drafts'
+with tempfile.TemporaryDirectory(prefix='marginstone-git-') as temp:
+    root = Path(temp).resolve(); remote = root/'remote.git'; repo = root/'website with spaces'; tree = root/'Marginstone drafts'
     subprocess.run(['git','init','--bare',str(remote)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     git(root,'clone',str(remote),str(repo)); git(repo,'config','user.name','Test Reader'); git(repo,'config','user.email','reader@example.test')
     git(repo,'checkout','-b','master'); (repo/'_posts').mkdir()
@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory(prefix='nautilus-git-') as temp:
     remote_before=git(remote,'rev-parse','master').stdout.strip()
     helper('check-upload',repo,'master')
     assert git(remote,'rev-parse','master').stdout.strip()==remote_before, 'connection test uploaded changes'
-    assert 'NAUTILUS_BRANCH=master' in helper('setup',repo,tree).stdout
+    assert 'MARGINSTONE_BRANCH=master' in helper('setup',repo,tree).stdout
     assert git(repo,'symbolic-ref','--short','HEAD').stdout.strip()=='master'
     assert git(tree,'symbolic-ref','--short','HEAD').stdout.strip()=='nautilus/drafts'
     with (tree/post).open('a') as f: f.write('\n## Excerpts\n\n> Quote with $HOME and `literal backticks`.\n')
