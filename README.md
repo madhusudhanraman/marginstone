@@ -1,8 +1,9 @@
 # Marginstone
 
-**v0.1.0 · Public beta · macOS**
+*To Varun, whose [Buddy](https://github.com/varun-ml/buddy) gave me the idea—*<br>
+*with delight and gratitude.*
 
-The idea for Marginstone came from [Buddy](https://github.com/varun-ml/buddy), by [varun-ml](https://github.com/varun-ml).
+**v0.1.0 · Public beta · macOS**
 
 I wanted a small app for keeping passages from whatever I happened to be reading: a book, an essay, something encountered in a browser. Copying the words is easy enough. Remembering where they came from, and finding them again a few weeks later, is less straightforward.
 
