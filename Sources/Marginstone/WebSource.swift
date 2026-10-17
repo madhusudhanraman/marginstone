@@ -14,7 +14,7 @@ enum WebSource {
         request.setValue("Marginstone/0.3 (reading source lookup)", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         if let http = response as? HTTPURLResponse, [401, 403, 429].contains(http.statusCode) {
-            throw AppFailure(message: "This website blocks automatic lookup. Use the browser capture bookmark, or enter the title and author here.")
+            throw AppFailure(message: "This website blocks automatic lookup. Enter the title and author here.")
         }
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode), data.count <= 2_000_000,
               http.mimeType == "text/html" || http.mimeType == "application/xhtml+xml",

@@ -65,7 +65,7 @@ struct LibraryView: View {
                             Button { creating = true } label: { Image(systemName: "plus") }.help("Add a source").accessibilityLabel("Add a source")
                             Button { model.showingSettings = true } label: { Image(systemName: "gearshape") }.help("Settings").accessibilityLabel("Settings")
                         }.frame(height: 28)
-                        Button("Save to file…") { model.saveToFile(sourcePath: selectedPath.isEmpty ? nil : selectedPath) }.disabled(model.passages.isEmpty).frame(height: 28)
+                        Button("Export…") { model.saveToFile(sourcePath: selectedPath.isEmpty ? nil : selectedPath) }.disabled(model.passages.isEmpty).frame(height: 28)
                     }.fixedSize(horizontal: true, vertical: false)
                 }.frame(maxWidth: .infinity)
 
@@ -77,7 +77,7 @@ struct LibraryView: View {
                             .font(.system(size: 20, design: .serif)).lineSpacing(6).padding(.vertical, 45)
                     }
                     ForEach(model.passages.filter { p in
-                        (selectedPath.isEmpty || p.sourcePath == selectedPath || p.sourcePath == nil) &&
+                        (selectedPath.isEmpty || p.sourcePath == selectedPath) &&
                         (search.isEmpty || (p.displayText + " " + (model.sources.first { $0.path == p.sourcePath }.map { $0.authorTitle } ?? "")).localizedCaseInsensitiveContains(search))
                     }) { passage in
                         VStack(alignment: .leading, spacing: 12) {
@@ -93,15 +93,21 @@ struct LibraryView: View {
                                     Button("Edit excerpt…") { editingPassage = passage }
                                     Button("Choose source…") { selecting = passage }
                                     Button("Original excerpt") { inspecting = passage }
-                                    if !model.repo.isEmpty, let source = model.sources.first(where: { $0.path == passage.sourcePath }) {
-                                        Button("Edit website post…") { editingPost = source }.disabled(model.needsWebsiteAccess)
+                                    if !model.repo.isEmpty, model.sources.contains(where: { $0.path == passage.sourcePath }) {
+                                        Button(passage.written ? "Edit website post…" : "Add excerpt to website post…") {
+                                            Task {
+                                                do { editingPost = try await model.prepareWebsitePost(for: passage) }
+                                                catch is CancellationError { }
+                                                catch { model.error = error.localizedDescription }
+                                            }
+                                        }
                                     }
                                     Divider()
                                     Button("Delete excerpt…", role: .destructive) { model.requestDeletePassage(passage) }
                                 } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Excerpt actions").accessibilityLabel("Excerpt actions").disabled(model.busy)
                             }.font(.system(size: 11))
                             Button { editingPassage = passage } label: {
-                                Text(passage.displayText).font(.system(size: 18, design: .serif)).lineSpacing(5)
+                                JustifiedExcerpt(text: passage.displayText)
                                     .frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
                             }.buttonStyle(.plain).disabled(model.busy).help("Click to edit excerpt")
                         }.padding(19).background(Color.white.opacity(0.55)).cornerRadius(7)
@@ -216,36 +222,47 @@ struct CollectionSettings: View {
             }.frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Capture").font(.headline)
-                Button("Set up browser capture…", action: model.showWebCaptureHelp)
                 Toggle("Use the selected source for text without a citation", isOn: $model.pinSource).disabled(model.currentSource == nil)
             }
             VStack(alignment: .leading, spacing: 10) {
                 Text("Save").font(.headline)
-                Text("Your captures are saved on this Mac.").font(.caption).foregroundColor(.secondary)
-                Button("Save excerpts to file…") { model.saveToFile() }.disabled(model.passages.isEmpty)
+                Text("Your captures are saved on this Mac.").font(.system(size: 13)).foregroundColor(.secondary)
+                Button("Export excerpts…") { model.saveToFile() }.disabled(model.passages.isEmpty)
             }
-            DisclosureGroup {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Website").font(.headline)
                 VStack(alignment: .leading, spacing: 10) {
                     if model.repo.isEmpty {
-                        Text("Publish excerpts to your website.").font(.caption).foregroundColor(.secondary)
+                        Text("Publish excerpts to your website.").font(.system(size: 13)).foregroundColor(.secondary)
                         Button("Choose website folder…", action: model.chooseRepository).disabled(model.busy)
                     } else {
-                        Text("Website folder: " + URL(fileURLWithPath: model.repo).lastPathComponent)
-                            .font(.caption).textSelection(.enabled).help(model.repo)
                         if model.needsWebsiteAccess {
-                            Text("Allow folder access to connect GitHub.").font(.caption).foregroundColor(.secondary)
-                            Button("Allow folder access…", action: model.chooseRepository).disabled(model.busy)
+                            Text("Your website folder is saved. Restore access to use it.").font(.system(size: 13)).foregroundColor(.secondary)
+                            Button("Restore access to website folder…", action: model.chooseRepository).disabled(model.busy)
                         } else {
-                            Button("Connect GitHub…", action: model.connectGitHub).disabled(model.busy)
+                            if model.githubConnected {
+                                HStack(spacing: 6) {
+                                    Text("GitHub")
+                                    Spacer()
+                                    Image(systemName: "checkmark").font(.system(size: 11, weight: .medium)).foregroundColor(.oxide)
+                                    Text("Connected").foregroundColor(.secondary)
+                                }
+                            } else {
+                                Button("Connect GitHub…", action: model.connectGitHub).disabled(model.busy)
+                            }
                         }
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text("Folder")
+                            Text(URL(fileURLWithPath: model.repo).lastPathComponent)
+                                .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                        }.font(.system(size: 12)).foregroundColor(.secondary).help(model.repo)
                     }
-                }.padding(.top, 8)
-                        } label: {
-                Text("Website (optional)").font(.headline).foregroundColor(.ink)
+                }.frame(maxWidth: .infinity, alignment: .leading)
             }
 
 
-        }.padding(24).frame(width: 560).background(Color.paper).foregroundColor(.ink).tint(.oxide).preferredColorScheme(.light)
+        }.font(.system(size: 13)).padding(24).frame(width: 560).background(Color.paper).foregroundColor(.ink).tint(.oxide).preferredColorScheme(.light)
+        .task { await model.checkGitHubConnection() }
     }
 }
 
@@ -286,7 +303,7 @@ struct SourcePicker: View {
     private var sourceForm: some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
-                Text(passage == nil ? "Add a source" : "Confirm the source").font(.system(size: 26, design: .serif))
+                Text(passage == nil ? "Add a source" : "Add source").font(.system(size: 26, design: .serif))
                 Spacer()
                 Button("Later") { dismiss() }
             }
@@ -363,20 +380,21 @@ struct SourcePicker: View {
                 Text("Other / unknown").tag("other")
             }.pickerStyle(.segmented)
 
-            TextField("Title", text: $title).textFieldStyle(.roundedBorder)
-            TextField("Author", text: $author).textFieldStyle(.roundedBorder)
+            TextField("Title (optional)", text: $title).textFieldStyle(.roundedBorder)
+            TextField("Author (optional)", text: $author).textFieldStyle(.roundedBorder)
             if sourceKind == "book" { bookSourceFields }
             if sourceKind != "book" && !message.isEmpty { Text(message).font(.caption).foregroundColor(.secondary) }
             HStack {
                 Spacer()
                 Button(passage == nil ? "Add source" : "Save source") {
-                    let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let enteredTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let cleanTitle = enteredTitle.isEmpty ? (URL(string: sourceURL)?.host ?? "Unknown source") : enteredTitle
                     let source = BookSource(path: model.newPath(title: cleanTitle, author: author), title: cleanTitle, author: author, cover: sourceKind == "book" ? cover : "", edition: sourceKind == "book" ? edition : "", kind: sourceKind)
                     if let passage {
                         do { try model.setCaptureSource(passage.id, title: cleanTitle, author: author, url: sourceURL); model.assign(passage.id, to: source); dismiss() }
                         catch { message = error.localizedDescription }
                     } else { model.createSource(source); dismiss() }
-                }.disabled((sourceKind == "book" && findingYear) || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }.disabled(sourceKind == "book" && findingYear)
             }
         }
     }
@@ -402,7 +420,7 @@ struct SourcePicker: View {
                             ForEach(editions) { item in
                                 Button {
                                     cover = item.cover; edition = item.key + " · " + item.label
-                                    message = "Edition selected. Create the page when ready."
+                                    message = "Edition selected."
                                 } label: {
                                     HStack { coverImage(URL(string: item.cover)); VStack(alignment: .leading) { Text(item.title); Text(item.label).font(.system(size: 11)).foregroundColor(.secondary) }; Spacer(); if edition.hasPrefix(item.key + " ·") { Image(systemName: "checkmark.circle.fill").foregroundColor(.oxide) } }.padding(7)
                                 }.buttonStyle(.plain)

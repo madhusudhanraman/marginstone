@@ -33,6 +33,18 @@ for size in 16 32 128 256 512; do
   sips -z "$double" "$double" "$PWD/dist/system-icon.png" --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$iconset" -o "$app_path/Contents/Resources/Marginstone.icns"
-codesign --force --sign - "$app_path"
+# Reuse a local certificate when available so updates keep a stable designated
+# requirement. Public source installations can still use ad-hoc signing.
+signing_identity="${MARGINSTONE_SIGNING_IDENTITY:-}"
+if [[ -z "$signing_identity" ]] && command -v security >/dev/null 2>&1; then
+  signing_identity="$(security find-identity -v -p codesigning 2>/dev/null | awk '/"Marginstone Local Development"/ {print $2; exit}' || true)"
+fi
+if [[ -z "$signing_identity" ]]; then
+  signing_identity="-"
+  echo 'Using ad-hoc signing; macOS permissions may need restoring after updates.'
+else
+  echo 'Using a persistent code-signing identity.'
+fi
+codesign --force --sign "$signing_identity" "$app_path"
 codesign --verify --deep --strict "$app_path"
 echo "Built: $app_path"

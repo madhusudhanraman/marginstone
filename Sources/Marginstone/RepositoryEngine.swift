@@ -25,7 +25,7 @@ actor RepositoryEngine {
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     private func saveDiagnostics(_ text: String) {
-        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Nautilus")
+        let folder = AppStorage.directory
         try? text.write(to: folder.appendingPathComponent("publication-diagnostics.txt"), atomically: true, encoding: .utf8)
     }
     func checkUpload(repo: String, branch: String) throws {
@@ -42,8 +42,9 @@ actor RepositoryEngine {
         }
         let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard path.split(separator: "/").count == 2, !token.isEmpty, !token.contains(where: { $0.isWhitespace }) else { throw AppFailure(message: "Enter a valid GitHub access token.") }
+        _ = try run(["configure-keychain", repo])
         let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["-C", repo, "-c", "credential.helper=", "-c", "credential.helper=osxkeychain", "credential", "approve"]
+        process.arguments = ["-C", repo, "-c", "credential.useHttpPath=true", "-c", "credential.helper=", "-c", "credential.helper=osxkeychain", "credential", "approve"]
         let input = Pipe(); let output = Pipe()
         process.standardInput = input; process.standardOutput = output; process.standardError = output
         try process.run()
@@ -51,7 +52,6 @@ actor RepositoryEngine {
         try input.fileHandleForWriting.close()
         _ = output.fileHandleForReading.readDataToEndOfFile(); process.waitUntilExit()
         guard process.terminationStatus == 0 else { throw AppFailure(message: "Could not save the connection in macOS Keychain.") }
-        _ = try run(["configure-keychain", repo])
         try checkUpload(repo: repo, branch: branch)
     }
     func connect(repo: String, tree: String) throws -> (String, [BookSource]) {
@@ -176,7 +176,7 @@ actor RepositoryEngine {
         do { _ = try run(["publish", repo, branch, book.path, head]) }
         catch {
             let detail = error.localizedDescription
-            let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Nautilus")
+            let folder = AppStorage.directory
             try? detail.write(to: folder.appendingPathComponent("publication-diagnostics.txt"), atomically: true, encoding: .utf8)
             throw AppFailure(message: "Publication did not finish. Your post is saved locally. Check your GitHub connection in Settings, then retry. Technical details are in the collection folder.")
         }

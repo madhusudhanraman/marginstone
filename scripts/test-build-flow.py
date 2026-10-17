@@ -30,6 +30,7 @@ exit 1''',
         'ditto': 'cp -R "$1" "$2"',
         'sips': ':',
         'iconutil': ':',
+        'security': "echo '0 valid identities found'",
         'codesign': 'printf "%s\n" "$*" >> "$SIGN_LOG"',
     }
     for name, body in stubs.items():
@@ -43,4 +44,10 @@ exit 1''',
     invocations=(root/'swift.log').read_text().splitlines()
     assert len(invocations)==2 and all(x.startswith('build ') and '--product Marginstone' in x and '--build-system native' in x and '--scratch-path' in x for x in invocations)
     assert '--verify --deep --strict' in (root/'sign.log').read_text()
+    # A persistent identity must be reused when available; never silently replace
+    # an explicitly requested identity with ad-hoc signing.
+    identity = '0123456789ABCDEF0123456789ABCDEF01234567'
+    env['MARGINSTONE_SIGNING_IDENTITY'] = identity
+    subprocess.run(['bash',str(copy/'scripts/build-macos.sh')],env=env,check=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    assert '--sign '+identity in (root/'sign.log').read_text()
     print('PASS: app-only builds, no XCTest invocation, paths with spaces, executable/resource packaging, signing/verification routing.')

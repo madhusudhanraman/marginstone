@@ -15,12 +15,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel!
     private var panel: FloatingPanel!
     private var shell: CompanionView!
+    private var selectionFollower: SelectionFollower?
     private var collection: NSWindow?
-    private var pendingWebCaptures: [URL] = []
     private var statusItem: NSStatusItem!
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = NSAppearance(named: .aqua)
         model = AppModel(); menus(); makeShell()
+        selectionFollower = SelectionFollower(view: shell)
         shell.movesSideToSide = model.movesSideToSide
         model.movementChanged = { [weak self] enabled in
             guard let self else { return }
@@ -36,16 +37,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(constrainShell), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         updateCompanion(model.companion)
         showCollection(); model.restoreConnection()
-        let queued = pendingWebCaptures; pendingWebCaptures = []
-        application(NSApp, open: queued)
-    }
-    func application(_ application: NSApplication, open urls: [URL]) {
-        guard model != nil else { pendingWebCaptures += urls; return }
-        for url in urls {
-            guard let payload = WebCapture.payload(from: url) else { continue }
-            do { _ = try model.receive(payload); shell.acknowledge(); showCollection() }
-            catch { model.error = error.localizedDescription; showCollection() }
-        }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showCollection(); return true }
@@ -115,6 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do { _ = try self.model.receive(payload) }
             catch { self.model.error = error.localizedDescription; throw error }
         }
+        shell.readSelection = { application in try await SelectionCapture.read(from: application) }
+        shell.captureFailed = { [weak self] error in self?.model.error = error.localizedDescription }
         shell.openCollection = { [weak self] in self?.showCollection() }
         shell.positionChanged = { [weak self] in if let origin = self?.panel.frame.origin { UserDefaults.standard.set(NSStringFromPoint(origin), forKey: "shellOrigin") } }
         shell.menu = shellMenu(); panel.contentView = shell
@@ -131,7 +124,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func hideShell() { panel.orderOut(nil) }
     @objc private func chooseRepo() { showCollection(); model.chooseRepository() }
     @objc private func saveExcerpts() { model.saveToFile(sourcePath: model.activePath) }
-    @objc private func webCaptureHelp() { model.showWebCaptureHelp() }
     @objc private func captureClipboard() { model.captureClipboard() }
     @objc private func showCollection() {
         if collection == nil {

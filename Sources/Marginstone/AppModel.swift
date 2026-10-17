@@ -15,6 +15,8 @@ private struct Journal: Codable {
     var sourceAliases: [String: String]?
     var postEdits: [String: PostEditBaseline]?
     var websiteBookmark: Data?
+    var websitePassages: [UUID]?
+    var githubConnected: Bool?
 }
 @MainActor
 final class AppModel: ObservableObject {
@@ -22,6 +24,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var sources: [BookSource] = []
     @Published private(set) var repo = ""
     @Published private(set) var branch = ""
+    @Published private(set) var githubConnected = false
     @Published var activePath: String? { didSet { saveSettings() } }
     @Published var pinSource = false { didSet { saveSettings() } }
     @Published var status = "Choose your Field Notes repository to begin."
@@ -53,23 +56,27 @@ final class AppModel: ObservableObject {
     private var sourceAliases: [String: String] = [:]
     private var postEdits: [String: PostEditBaseline] = [:]
     private var queue: Task<Void, Never>?
+    private var connection: Task<Void, Never>?
+    private var websitePassages: Set<UUID> = []
     private var websiteBookmark: Data?
     private var accessedWebsite: URL?
     var tree: String { support.appendingPathComponent("Drafts").path }
     var currentSource: BookSource? { sources.first { $0.path == activePath } }
     var unassigned: [SavedPassage] { passages.filter { $0.sourcePath == nil } }
-    var pending: [SavedPassage] { passages.filter { !$0.written && $0.sourcePath != nil } }
+    var pending: [SavedPassage] { WebsiteSelection.pending(passages, selected: websitePassages) }
     init() {
-        // Keep the original storage location so upgrades retain captures and the Git worktree.
-        support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Nautilus")
+        // Reuse existing collections; new installations use the Marginstone folder.
+        support = AppStorage.directory
         journal = support.appendingPathComponent("collection.json")
         if FileManager.default.fileExists(atPath: journal.path) {
             do {
                 let state = try JSONDecoder().decode(Journal.self, from: Data(contentsOf: journal))
                 guard state.version == 1 else { throw AppFailure(message: "This collection uses a newer format.") }
                 repo = state.repo; branch = state.branch; sources = state.sources; passages = state.passages
+                websitePassages = WebsiteSelection.restored(state.websitePassages, passages: state.passages)
                 sourceAliases = state.sourceAliases ?? [:]; postEdits = state.postEdits ?? [:]
                 websiteBookmark = state.websiteBookmark
+                githubConnected = state.githubConnected ?? false
                 activePath = state.activePath; pinSource = state.pinSource
                 status = repo.isEmpty ? "Choose your Field Notes repository." : "Collection restored. Connecting to your drafts…"
             } catch { canWrite = false; self.error = "Your saved collection could not be read. It has been left untouched: \(error.localizedDescription)" }
@@ -79,13 +86,13 @@ final class AppModel: ObservableObject {
     func restoreConnection() {
         guard !repo.isEmpty, canWrite else { return }
         guard let bookmark = websiteBookmark else {
-            status = "Choose your website folder once more to remember access. Your captures are safe."
+            status = "Restore access to your saved website folder. Your captures are safe."
             return
         }
         do {
             var stale = false
             let url = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI], relativeTo: nil, bookmarkDataIsStale: &stale)
-            guard url.startAccessingSecurityScopedResource() else { throw AppFailure(message: "Choose your website folder again to restore access.") }
+            guard url.startAccessingSecurityScopedResource() else { throw AppFailure(message: "Restore access to your website folder.") }
             accessedWebsite = url
             if stale { websiteBookmark = try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) }
             connect(url.resolvingSymlinksInPath().path)
@@ -97,7 +104,7 @@ final class AppModel: ObservableObject {
 
     private func persist() throws {
         guard canWrite else { throw AppFailure(message: "The collection is read-only because its saved file could not be read.") }
-        let state = Journal(repo: repo, branch: branch, sources: sources, passages: passages, activePath: activePath, pinSource: pinSource, autoSync: false, sourceAliases: sourceAliases, postEdits: postEdits, websiteBookmark: websiteBookmark)
+        let state = Journal(repo: repo, branch: branch, sources: sources, passages: passages, activePath: activePath, pinSource: pinSource, autoSync: false, sourceAliases: sourceAliases, postEdits: postEdits, websiteBookmark: websiteBookmark, websitePassages: Array(websitePassages), githubConnected: githubConnected)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
         try encoder.encode(state).write(to: journal, options: .atomic)
@@ -105,8 +112,16 @@ final class AppModel: ObservableObject {
     private func saveSettings() { guard !loading else { return }; do { try persist() } catch { self.error = error.localizedDescription } }
     func chooseRepository() {
         guard !busy else { return }
-        let picker = NSOpenPanel(); picker.title = "Choose your Field Notes repository"
-        picker.message = "Choose your website folder containing _posts. Marginstone searches this repository for existing book pages; it does not search other folders."
+        let picker = NSOpenPanel()
+        if repo.isEmpty {
+            picker.title = "Choose your website folder"
+            picker.message = "Select your website folder to allow Marginstone to prepare posts there."
+        } else {
+            picker.title = "Restore access to your website folder"
+            picker.prompt = "Restore access"
+            picker.directoryURL = URL(fileURLWithPath: repo)
+            picker.message = "Marginstone remembers your website folder:\n\(repo)\nSelect this folder to restore macOS permission to use it."
+        }
         picker.canChooseDirectories = true; picker.canChooseFiles = false; picker.allowsMultipleSelection = false
         guard picker.runModal() == .OK, let url = picker.url else { return }
         let path = url.resolvingSymlinksInPath().path
@@ -118,11 +133,11 @@ final class AppModel: ObservableObject {
             accessedWebsite = url; websiteBookmark = bookmark
             try persist()
             connect(path)
-        } catch { self.error = "Could not remember website folder access. Please select the folder again." }
+        } catch { self.error = "Could not save permission for your website folder. Use Restore access to try again." }
     }
     private func connect(_ path: String) {
         guard !busy else { return }; busy = true
-        Task {
+        connection = Task {
             defer { busy = false }
             do {
                 let (publicationBranch, imported) = try await engine.connect(repo: path, tree: tree)
@@ -136,7 +151,7 @@ final class AppModel: ObservableObject {
                     }
                 }
                 try persist()
-                choosingSource = !unassigned.isEmpty
+                choosingSource = false
                 status = "Connected · \(sources.count) book pages found · drafts save separately from the website."
                 flush()
             } catch { self.error = error.localizedDescription; status = "Connection needs attention. Captures remain saved locally." }
@@ -157,29 +172,13 @@ final class AppModel: ObservableObject {
             $0.sourcePath == destination && $0.payload.text == payload.text && $0.payload.url == payload.url
         }) {
             status = "This passage is already saved. No duplicate was added."
-            if existing.sourcePath == nil { choosingSource = true; openCollection?() }
             return existing.id
         }
         let passage = SavedPassage(payload: payload, sourcePath: destination)
         passages.insert(passage, at: 0)
         do { try persist() } catch { passages.removeAll { $0.id == passage.id }; throw error }
-        if destination == nil {
-            status = "Passage saved. Choose its book or source."
-            choosingSource = true; openCollection?()
-        } else { status = repo.isEmpty ? "Saved locally" : "Saved locally. Updating the book’s draft…"; flush() }
+        status = "Saved locally"
         return passage.id
-    }
-    func showWebCaptureHelp() {
-        do {
-            guard let page = AppResources.bundle.url(forResource: "web-capture", withExtension: "html", subdirectory: "Resources"),
-                  let artwork = AppResources.bundle.url(forResource: companion.rawValue, withExtension: "png", subdirectory: "Resources") else { throw AppFailure(message: "Browser setup is missing. Reinstall Marginstone.") }
-            let folder = support.appendingPathComponent("BrowserSetup")
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try Data(contentsOf: artwork).write(to: folder.appendingPathComponent("companion.png"), options: .atomic)
-            let destination = folder.appendingPathComponent("index.html")
-            try Data(contentsOf: page).write(to: destination, options: .atomic)
-            NSWorkspace.shared.open(destination)
-        } catch { self.error = error.localizedDescription }
     }
     func captureClipboard() {
         do { _ = try receive(CaptureReader.read(.general)); captured?() }
@@ -214,11 +213,16 @@ final class AppModel: ObservableObject {
         guard let index = passages.firstIndex(where: { $0.id == id }) else { return }
         let old = passages[index]; let oldSources = sources; let oldAliases = sourceAliases
         if !sources.contains(where: { $0.path == source.path }) { sources.append(source); sources.sort { $0.title < $1.title } }
+        let oldWebsitePassages = websitePassages
+        if passages[index].sourcePath != source.path {
+            passages[index].written = false
+            websitePassages.remove(id)
+        }
         passages[index].sourcePath = source.path
         if let hint = CitationParser.books(passages[index].payload.text) { sourceAliases[hintKey(hint)] = source.path }
         if !passages[index].payload.url.isEmpty { sourceAliases["url\n" + passages[index].payload.url] = source.path }
         do { try persist(); activePath = source.path; choosingSource = false; flush() }
-        catch { passages[index] = old; sources = oldSources; sourceAliases = oldAliases; self.error = error.localizedDescription }
+        catch { passages[index] = old; sources = oldSources; sourceAliases = oldAliases; websitePassages = oldWebsitePassages; self.error = error.localizedDescription }
     }
     func flush() {
         guard !repo.isEmpty, !needsWebsiteAccess else { return }
@@ -226,7 +230,7 @@ final class AppModel: ObservableObject {
         queue = Task {
             await previous?.value
             busy = true; defer { busy = false }
-            for book in sources {
+            for book in sources where pending.contains(where: { $0.sourcePath == book.path }) {
                 do {
                     if let warning = try await engine.create(book: book, tree: tree, push: false) { status = warning }
                 } catch { self.error = error.localizedDescription; return }
@@ -247,7 +251,7 @@ final class AppModel: ObservableObject {
         let old = sources[index]
         sources[index].cover = cover
         do { try persist() } catch { sources[index] = old; self.error = error.localizedDescription; return }
-        guard !repo.isEmpty, !needsWebsiteAccess else { return }
+        guard !repo.isEmpty, !needsWebsiteAccess, passages.contains(where: { $0.sourcePath == source.path && $0.written }) else { return }
         let book = sources[index]
         busy = true
         Task {
@@ -257,6 +261,26 @@ final class AppModel: ObservableObject {
                 status = "Cover saved to the local draft. Publish separately to update the website."
             } catch { self.error = error.localizedDescription }
         }
+    }
+    func prepareWebsitePost(for passage: SavedPassage) async throws -> BookSource {
+        if needsWebsiteAccess {
+            chooseRepository()
+            await connection?.value
+            guard !needsWebsiteAccess else { throw CancellationError() }
+        }
+        guard !repo.isEmpty, !needsWebsiteAccess,
+              let source = sources.first(where: { $0.path == passage.sourcePath }) else {
+            throw AppFailure(message: "Add a source and connect a website in Settings first.")
+        }
+        let previous = websitePassages
+        websitePassages.insert(passage.id)
+        do { try persist() } catch { websitePassages = previous; throw error }
+        flush()
+        await queue?.value
+        guard passages.first(where: { $0.id == passage.id })?.written == true else {
+            throw AppFailure(message: "The excerpt is saved in your collection. The website draft could not be prepared; try again when ready.")
+        }
+        return source
     }
     func loadPost(_ book: BookSource) async throws -> PostDocument {
         guard !needsWebsiteAccess else { throw AppFailure(message: "Allow access to your website folder in Settings first. Your captures are safe.") }
@@ -288,7 +312,7 @@ final class AppModel: ObservableObject {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf8.count <= 2_000_000 else { throw AppFailure(message: "Enter a passage between 1 byte and 2 MB.") }
         guard let index = passages.firstIndex(where: { $0.id == passage.id }), passages[index].displayText == passage.displayText else { throw AppFailure(message: "This excerpt changed. Reopen the editor.") }
         if text == passage.displayText { return }
-        if !repo.isEmpty, let book = sources.first(where: { $0.path == passage.sourcePath }) {
+        if !repo.isEmpty, passage.written, let book = sources.first(where: { $0.path == passage.sourcePath }) {
             let document = try await loadPost(book)
             guard let updated = Markdown.editingExcerpt(in: document.text, passage: passage, text: text) else {
                 throw AppFailure(message: "This excerpt was changed in the full post. Use View & edit post to edit that version.")
@@ -323,7 +347,7 @@ final class AppModel: ObservableObject {
             .appendingPathComponent("delete-" + passage.id.uuidString + "-" + UUID().uuidString + ".json")
         try FileManager.default.createDirectory(at: backup.deletingLastPathComponent(), withIntermediateDirectories: true)
         try FileManager.default.copyItem(at: journal, to: backup)
-        if !repo.isEmpty, let book = sources.first(where: { $0.path == passage.sourcePath }) {
+        if !repo.isEmpty, passage.written, let book = sources.first(where: { $0.path == passage.sourcePath }) {
             let document: PostDocument?
             if passage.written { document = try await loadPost(book) }
             else { document = try? await loadPost(book) }
@@ -340,6 +364,15 @@ final class AppModel: ObservableObject {
         do { try persist() } catch { passages = before; throw error }
         if unassigned.isEmpty { choosingSource = false }
         status = "Excerpt deleted locally. A recovery backup is in the collection folder. Website changes require Publish."
+    }
+    func checkGitHubConnection() async {
+        guard !busy, !repo.isEmpty, !needsWebsiteAccess else { return }
+        busy = true; defer { busy = false }
+        do {
+            try await engine.checkUpload(repo: repo, branch: branch)
+            githubConnected = true
+        } catch { githubConnected = false }
+        try? persist()
     }
     func connectGitHub() {
         guard !busy, !repo.isEmpty else { return }
@@ -362,7 +395,9 @@ final class AppModel: ObservableObject {
             defer { busy = false }
             do {
                 try await engine.connectGitHub(repo: repo, branch: branch, token: token)
-                let done = NSAlert(); done.messageText = "GitHub connected"; done.informativeText = "Nothing was uploaded. Use Publish when you’re ready."; done.runModal()
+                githubConnected = true
+                try persist()
+                status = "GitHub connected. Nothing was uploaded."
             } catch { self.error = error.localizedDescription }
         }
     }
