@@ -218,7 +218,7 @@ struct CollectionSettings: View {
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    Toggle("Move side to side", isOn: $model.movesSideToSide).toggleStyle(.button).controlSize(.small)
+                    Toggle("Loiter in corner", isOn: $model.movesSideToSide).toggleStyle(.button).controlSize(.small)
             }.frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Capture").font(.headline)

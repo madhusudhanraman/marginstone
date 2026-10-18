@@ -16,12 +16,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: FloatingPanel!
     private var shell: CompanionView!
     private var selectionFollower: SelectionFollower?
+    private var missionControlParking: MissionControlParking?
     private var collection: NSWindow?
     private var statusItem: NSStatusItem!
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = NSAppearance(named: .aqua)
         model = AppModel(); menus(); makeShell()
         selectionFollower = SelectionFollower(view: shell)
+        missionControlParking = MissionControlParking(view: shell)
         shell.movesSideToSide = model.movesSideToSide
         model.movementChanged = { [weak self] enabled in
             guard let self else { return }
@@ -95,9 +97,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private func makeShell() {
         let area = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
-        panel = FloatingPanel(contentRect: NSRect(x: area.midX-55, y: area.minY+12, width: 110, height: 110), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel = FloatingPanel(contentRect: NSRect(origin: WanderingMotion.home(area: area, size: NSSize(width: 110, height: 110)), size: NSSize(width: 110, height: 110)), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.title = model.companion.name; panel.isFloatingPanel = true; panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
         panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false; panel.animationBehavior = .none
         shell = CompanionView(frame: NSRect(x: 0, y: 0, width: 110, height: 110))
@@ -111,12 +113,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         shell.openCollection = { [weak self] in self?.showCollection() }
         shell.positionChanged = { [weak self] in if let origin = self?.panel.frame.origin { UserDefaults.standard.set(NSStringFromPoint(origin), forKey: "shellOrigin") } }
         shell.menu = shellMenu(); panel.contentView = shell
-        if let point = UserDefaults.standard.string(forKey: "shellOrigin") { panel.setFrameOrigin(NSPointFromString(point)) }
         constrainShell(); panel.orderFrontRegardless()
     }
     @objc private func constrainShell() {
         guard panel != nil, let area = (NSScreen.screens.first { $0.visibleFrame.intersects(panel.frame) } ?? NSScreen.main)?.visibleFrame else { return }
-        panel.setFrameOrigin(NSPoint(x: min(max(panel.frame.minX,area.minX),area.maxX-panel.frame.width), y: min(max(panel.frame.minY, area.minY), area.maxY-panel.frame.height)))
+        panel.setFrameOrigin(WanderingMotion.home(area: area, size: panel.frame.size))
     }
     @objc private func showSettings() { showCollection(); model.showingSettings = true }
     @objc private func toggleMovement() { model.movesSideToSide.toggle() }

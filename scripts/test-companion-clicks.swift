@@ -77,6 +77,14 @@ struct AppFailure: LocalizedError {
         try await Task.sleep(nanoseconds: 850_000_000)
         precondition(abs(window.frame.minX - start.x) < 1 && abs(window.frame.minY - start.y) < 1)
         precondition(captures == capturesBeforeDismiss && window.alphaValue == 1)
-        print("Click capture, fade relocation, capture return and pointer-away dismissal checks passed.")
+        let parked = NSPoint(x: 1200, y: 700)
+        view.parkForOverview(at: parked)
+        precondition(window.frame.origin == parked && !view.canFollowSelection)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        precondition(window.frame.origin == parked)
+        view.leaveOverview()
+        try await Task.sleep(nanoseconds: 650_000_000)
+        precondition(abs(window.frame.minX - start.x) < 1 && abs(window.frame.minY - start.y) < 1)
+        print("Click capture, fade/return, pointer dismissal and overview parking checks passed.")
     }
 }

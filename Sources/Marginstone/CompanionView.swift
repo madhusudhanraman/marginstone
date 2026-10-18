@@ -9,7 +9,9 @@ final class FloatingPanel: NSPanel {
 final class CompanionView: NSView {
     var movesSideToSide = true
     var staysNearSelection = false
-    var canFollowSelection: Bool { !hovering && !receiving && !moving && !capturingSelection && travel == nil }
+    private var overviewOrigin: NSPoint?
+    private var isParkedForOverview = false
+    var canFollowSelection: Bool { !hovering && !receiving && !moving && !capturingSelection && travel == nil && !isParkedForOverview }
     var capture: ((CapturePayload) throws -> Void)?
     var captureFailed: ((Error) -> Void)?
     var openCollection: (() -> Void)?
@@ -40,6 +42,20 @@ final class CompanionView: NSView {
         if restingOrigin == nil { restingOrigin = window.frame.origin }
         returnAt = nil; pointerAwaySince = nil
         relocate(to: destination)
+    }
+    func parkForOverview(at origin: NSPoint) {
+        guard let window, !isParkedForOverview else { return }
+        overviewOrigin = restingOrigin ?? window.frame.origin
+        restingOrigin = nil; returnAt = nil; pointerAwaySince = nil
+        travel = nil; window.alphaValue = 1
+        staysNearSelection = false; isParkedForOverview = true
+        window.setFrameOrigin(origin)
+    }
+    func leaveOverview() {
+        guard isParkedForOverview, let origin = overviewOrigin else { return }
+        overviewOrigin = nil; isParkedForOverview = false
+        wandering.reset()
+        relocate(to: origin)
     }
     private func relocate(to destination: NSPoint) {
         guard let window else { return }
@@ -101,8 +117,9 @@ final class CompanionView: NSView {
         guard moving, let window else { return }
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? window.screen ?? NSScreen.main
         guard let area = screen?.visibleFrame else { return }
-        window.setFrameOrigin(NSPoint(x: min(max(windowStart.x+delta.x, area.minX), area.maxX-window.frame.width), y: min(max(windowStart.y+delta.y, area.minY), area.maxY-window.frame.height)))
-        wandering.reset(height: window.frame.minY)
+        let region = WanderingMotion.originBounds(area: area, size: window.frame.size)
+        window.setFrameOrigin(NSPoint(x: min(max(windowStart.x+delta.x, region.minX), region.maxX), y: min(max(windowStart.y+delta.y, region.minY), region.maxY)))
+        wandering.reset()
         positionChanged?()
     }
     override func mouseUp(with event: NSEvent) {
@@ -195,7 +212,7 @@ final class CompanionView: NSView {
         }
         if !hovering && !receiving && !moving && !acknowledging && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             angle = (angle+velocity*dt).truncatingRemainder(dividingBy: 360)
-            if movesSideToSide, !staysNearSelection, travel == nil, let window, let area = window.screen?.visibleFrame {
+            if movesSideToSide, !staysNearSelection, !isParkedForOverview, travel == nil, let window, let area = window.screen?.visibleFrame {
                 window.setFrameOrigin(wandering.step(from: window.frame.origin, dt: dt, area: area, size: window.frame.size))
             }
         }
